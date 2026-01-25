@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 )
@@ -11,6 +12,12 @@ func main() {
 	fmt.Println("opcli - OPC UA Interactive Client")
 	fmt.Println("Type 'help' for available commands")
 	fmt.Println()
+
+	// Если передан IP-адрес, подключаемся с портом по умолчанию
+	if len(os.Args) == 2 && isIPv4(os.Args[1]) {
+		endpoint := fmt.Sprintf("opc.tcp://%s:4840", os.Args[1])
+		handleConnect([]string{endpoint})
+	}
 
 	// Если передан аргумент connect, выполняем сразу
 	if len(os.Args) > 2 && os.Args[1] == "connect" {
@@ -160,4 +167,9 @@ func handleCall(args []string) error {
 	// TODO: реализовать call
 	fmt.Println("TODO: Method call not implemented yet")
 	return nil
+}
+
+func isIPv4(s string) bool {
+	ip := net.ParseIP(s)
+	return ip != nil && ip.To4() != nil
 }
