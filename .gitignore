@@ -13,3 +13,8 @@ __debug*
 
 .claude/
 CLAUDE.md
+
+.gemini/
+GEMINI.md
+
+.agents/
