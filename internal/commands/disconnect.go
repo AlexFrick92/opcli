@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"opcli/internal/client"
+	"github.com/alexfrick92/opcli/internal/client"
 )
 
 // Disconnect отключается от OPC UA сервера

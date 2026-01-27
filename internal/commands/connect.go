@@ -2,7 +2,8 @@ package commands
 
 import (
 	"fmt"
-	"opcli/internal/client"
+
+	"github.com/alexfrick92/opcli/internal/client"
 )
 
 // Connect подключается к OPC UA серверу по указанному endpoint

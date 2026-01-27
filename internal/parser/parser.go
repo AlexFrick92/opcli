@@ -3,8 +3,9 @@ package parser
 import (
 	"fmt"
 	"net"
-	"opcli/internal/commands"
 	"strings"
+
+	"github.com/alexfrick92/opcli/internal/commands"
 )
 
 // Execute выполняет команду из пользовательского ввода

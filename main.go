@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"log"
-	"opcli/internal/client"
-	"opcli/internal/parser"
 	"os"
 	"strings"
+
+	"github.com/alexfrick92/opcli/internal/client"
+	"github.com/alexfrick92/opcli/internal/parser"
 )
 
 func main() {
