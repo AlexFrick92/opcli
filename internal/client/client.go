@@ -121,7 +121,7 @@ func printServerInfo(info *ServerInfo) {
 	if info.ServerState != "" {
 		fmt.Printf("State:        %s\n", info.ServerState)
 	}
-	fmt.Println("==========================\n")
+	fmt.Println("==========================")
 }
 
 // readNodeValue читает значение узла по Node ID
