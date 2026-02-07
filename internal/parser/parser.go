@@ -62,8 +62,11 @@ func ParseStartupArgs(args []string) error {
 		return commands.Connect(endpoint)
 	}
 
-	// Если передан аргумент connect, выполняем сразу
-	if len(args) > 2 && args[1] == "connect" {
+	// Handle 'connect' command
+	if len(args) >= 2 && args[1] == "connect" {
+		if len(args) < 3 { // 'connect' command requires an endpoint
+			return fmt.Errorf("usage: connect <endpoint>")
+		}
 		return commands.Connect(args[2])
 	}
 
