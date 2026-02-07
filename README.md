@@ -1,6 +1,6 @@
 # opcli
 
-Interactive console client for OPC UA servers, similar to psql for PostgreSQL.
+Interactive console client for OPC UA servers, similar to psql for PostgreSQL or ping command.
 
 ## Features
 
