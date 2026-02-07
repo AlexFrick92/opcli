@@ -8,6 +8,9 @@ import (
 	"github.com/alexfrick92/opcli/internal/commands"
 )
 
+var connectCommand = commands.Connect
+var disconnectCommand = commands.Disconnect
+
 // Execute выполняет команду из пользовательского ввода
 func Execute(input string) error {
 	parts := strings.Fields(input)
@@ -47,11 +50,11 @@ func handleConnect(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("usage: connect <endpoint>")
 	}
-	return commands.Connect(args[0])
+	return connectCommand(args[0])
 }
 
 func handleDisconnect() error {
-	return commands.Disconnect()
+	return disconnectCommand()
 }
 
 // ParseStartupArgs обрабатывает аргументы командной строки при запуске
@@ -59,7 +62,7 @@ func ParseStartupArgs(args []string) error {
 	// Если передан IP-адрес, подключаемся с портом по умолчанию
 	if len(args) == 2 && isIPv4(args[1]) {
 		endpoint := fmt.Sprintf("opc.tcp://%s:4840", args[1])
-		return commands.Connect(endpoint)
+		return connectCommand(endpoint)
 	}
 
 	// Handle 'connect' command
@@ -67,7 +70,7 @@ func ParseStartupArgs(args []string) error {
 		if len(args) < 3 { // 'connect' command requires an endpoint
 			return fmt.Errorf("usage: connect <endpoint>")
 		}
-		return commands.Connect(args[2])
+		return connectCommand(args[2])
 	}
 
 	return nil

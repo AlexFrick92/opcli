@@ -1,11 +1,40 @@
 package parser
 
 import (
-
+	"fmt"
 	"testing"
-
-
 )
+
+// Mock variables for connectCommand and disconnectCommand
+var (
+	mockConnectCalled   bool
+	mockConnectEndpoint string
+	mockConnectError    error
+	mockDisconnectCalled bool
+	mockDisconnectError  error
+)
+
+// mockConnect is a mock implementation for connectCommand
+func mockConnect(endpoint string) error {
+	mockConnectCalled = true
+	mockConnectEndpoint = endpoint
+	return mockConnectError
+}
+
+// mockDisconnect is a mock implementation for disconnectCommand
+func mockDisconnect() error {
+	mockDisconnectCalled = true
+	return mockDisconnectError
+}
+
+// resetMocks resets the state of all mock variables
+func resetMocks() {
+	mockConnectCalled = false
+	mockConnectEndpoint = ""
+	mockConnectError = nil
+	mockDisconnectCalled = false
+	mockDisconnectError = nil
+}
 
 // TestExecute проверяет функцию Execute для различных входных данных.
 // Эта функция является основной точкой входа для обработки команд пользователя.
@@ -15,20 +44,24 @@ import (
 // - Корректная обработка известных команд (`help`, `exit`, `quit`).
 // - Возврат ожидаемой ошибки для неизвестных команд.
 // - Возврат ошибки при неверном использовании команды `connect` (например, без аргументов).
-//
-// Ограничения:
-// Тестирование команд, которые инициируют фактические сетевые подключения (`connect <endpoint>`, `disconnect`),
-// требует заглушек (mocks) для функций `commands.Connect` и `commands.Disconnect`.
-// Без модификации пакета `commands` (например, чтобы сделать `Connect` и `Disconnect` переменными)
-// невозможно изолировать эти тесты от реальных сетевых операций.
-// Поэтому такие сценарии здесь не тестируются.
+// - Корректная обработка команд `connect` и `disconnect` с использованием заглушек.
 func TestExecute(t *testing.T) {
+	// Сохраняем оригинальные функции и восстанавливаем их после выполнения всех тестов
+	oldConnectCommand := connectCommand
+	oldDisconnectCommand := disconnectCommand
+	defer func() {
+		connectCommand = oldConnectCommand
+		disconnectCommand = oldDisconnectCommand
+	}()
+
 	tests := []struct {
-		name     string
-		input    string
-		wantErr  bool
-		wantExit bool
-		errMsg   string
+		name                 string
+		input                string
+		setupMocks           func()
+		checkMocks           func(*testing.T)
+		wantErr              bool
+		wantExit             bool
+		errMsg               string
 	}{
 		{
 			name:    "Пустой ввод не должен вызывать ошибок",
@@ -38,7 +71,7 @@ func TestExecute(t *testing.T) {
 		{
 			name:    "Команда help не должна вызывать ошибок",
 			input:   "help",
-			wantErr: false, // PrintHelp просто печатает в консоль, не возвращает ошибок
+			wantErr: false,
 		},
 		{
 			name:     "Команда exit должна вернуть ошибку 'exit'",
@@ -64,11 +97,79 @@ func TestExecute(t *testing.T) {
 			wantErr: true,
 			errMsg:  "usage: connect <endpoint>",
 		},
-		// Сценарии `connect <endpoint>` и `disconnect` здесь не тестируются, см. Ограничения выше.
+		{
+			name:  "Команда connect с эндпоинтом должна вызвать mockConnect",
+			input: "connect opc.tcp://localhost:4840",
+			setupMocks: func() {
+				connectCommand = mockConnect
+				mockConnectError = nil // Устанавливаем успешное выполнение
+			},
+			checkMocks: func(t *testing.T) {
+				if !mockConnectCalled {
+					t.Errorf("mockConnect не был вызван")
+				}
+				if mockConnectEndpoint != "opc.tcp://localhost:4840" {
+					t.Errorf("mockConnect вызван с неверным эндпоинтом: %s", mockConnectEndpoint)
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:  "Команда connect с эндпоинтом должна вернуть ошибку от mockConnect",
+			input: "connect opc.tcp://remote:4840",
+			setupMocks: func() {
+				connectCommand = mockConnect
+				mockConnectError = fmt.Errorf("mock connect failed")
+			},
+			checkMocks: func(t *testing.T) {
+				if !mockConnectCalled {
+					t.Errorf("mockConnect не был вызван")
+				}
+				if mockConnectEndpoint != "opc.tcp://remote:4840" {
+					t.Errorf("mockConnect вызван с неверным эндпоинтом: %s", mockConnectEndpoint)
+				}
+			},
+			wantErr: true,
+			errMsg:  "mock connect failed",
+		},
+		{
+			name:  "Команда disconnect должна вызвать mockDisconnect",
+			input: "disconnect",
+			setupMocks: func() {
+				disconnectCommand = mockDisconnect
+				mockDisconnectError = nil // Устанавливаем успешное выполнение
+			},
+			checkMocks: func(t *testing.T) {
+				if !mockDisconnectCalled {
+					t.Errorf("mockDisconnect не был вызван")
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:  "Команда disconnect должна вернуть ошибку от mockDisconnect",
+			input: "disconnect",
+			setupMocks: func() {
+				disconnectCommand = mockDisconnect
+				mockDisconnectError = fmt.Errorf("mock disconnect failed")
+			},
+			checkMocks: func(t *testing.T) {
+				if !mockDisconnectCalled {
+					t.Errorf("mockDisconnect не был вызван")
+				}
+			},
+			wantErr: true,
+			errMsg:  "mock disconnect failed",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			resetMocks() // Сброс моков перед каждым подтестом
+			if tt.setupMocks != nil {
+				tt.setupMocks()
+			}
+
 			err := Execute(tt.input)
 
 			if tt.wantErr {
@@ -84,6 +185,10 @@ func TestExecute(t *testing.T) {
 					t.Errorf("Execute() получена непредвиденная ошибка = %v", err)
 				}
 			}
+
+			if tt.checkMocks != nil {
+				tt.checkMocks(t)
+			}
 		})
 	}
 }
@@ -94,19 +199,21 @@ func TestExecute(t *testing.T) {
 // Основные аспекты тестирования:
 // - Обработка запуска без функциональных аргументов.
 // - Обработка неполных аргументов для команды `connect`.
-//
-// Ограничения:
-// Сценарии, которые приводят к фактическому вызову `commands.Connect`
-// (например, `opcli 127.0.0.1` или `opcli connect opc.tcp://...`), не тестируются напрямую.
-// Это связано с тем, что `commands.Connect` является функцией, а не переменной,
-// и не может быть легко переопределена для целей тестирования без модификации пакета `commands`.
-// Полноценное тестирование этих сценариев потребует рефакторинга для обеспечения тестопригодности (например, внедрение зависимостей через интерфейсы).
+// - Корректная обработка аргументов для `connect` и IP-адресов с использованием заглушек.
 func TestParseStartupArgs(t *testing.T) {
+	// Сохраняем оригинальные функции и восстанавливаем их после выполнения всех тестов
+	oldConnectCommand := connectCommand
+	defer func() {
+		connectCommand = oldConnectCommand
+	}()
+
 	tests := []struct {
-		name    string
-		args    []string
-		wantErr bool
-		errMsg  string
+		name                 string
+		args                 []string
+		setupMocks           func()
+		checkMocks           func(*testing.T)
+		wantErr              bool
+		errMsg               string
 	}{
 		{
 			name:    "Без аргументов после имени программы не должно быть ошибок",
@@ -117,17 +224,80 @@ func TestParseStartupArgs(t *testing.T) {
 			name:    "Недостаточно аргументов для 'connect' должно вернуть ошибку использования",
 			args:    []string{"opcli", "connect"},
 			wantErr: true,
-			errMsg:  "usage: connect <endpoint>", // Эта ошибка происходит из handleConnect, вызываемого ParseStartupArgs
+			errMsg:  "usage: connect <endpoint>",
 		},
-		// Сценарии с действительным IP или точкой подключения для `connect` здесь не тестируются, см. Ограничения выше.
+		{
+			name: "Запуск с IP-адресом должен вызвать mockConnect",
+			args: []string{"opcli", "127.0.0.1"},
+			setupMocks: func() {
+				connectCommand = mockConnect
+				mockConnectError = nil
+			},
+			checkMocks: func(t *testing.T) {
+				if !mockConnectCalled {
+					t.Errorf("mockConnect не был вызван")
+				}
+				if mockConnectEndpoint != "opc.tcp://127.0.0.1:4840" {
+					t.Errorf("mockConnect вызван с неверным эндпоинтом: %s", mockConnectEndpoint)
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "Запуск с IP-адресом должен вернуть ошибку от mockConnect",
+			args: []string{"opcli", "127.0.0.1"},
+			setupMocks: func() {
+				connectCommand = mockConnect
+				mockConnectError = fmt.Errorf("mock startup connect failed")
+			},
+			checkMocks: func(t *testing.T) {
+				if !mockConnectCalled {
+					t.Errorf("mockConnect не был вызван")
+				}
+			},
+			wantErr: true,
+			errMsg:  "mock startup connect failed",
+		},
+		{
+			name: "Запуск с 'connect <endpoint>' должен вызвать mockConnect",
+			args: []string{"opcli", "connect", "opc.tcp://localhost:4840"},
+			setupMocks: func() {
+				connectCommand = mockConnect
+				mockConnectError = nil
+			},
+			checkMocks: func(t *testing.T) {
+				if !mockConnectCalled {
+					t.Errorf("mockConnect не был вызван")
+				}
+				if mockConnectEndpoint != "opc.tcp://localhost:4840" {
+					t.Errorf("mockConnect вызван с неверным эндпоинтом: %s", mockConnectEndpoint)
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "Запуск с 'connect <endpoint>' должен вернуть ошибку от mockConnect",
+			args: []string{"opcli", "connect", "opc.tcp://invalid:4840"},
+			setupMocks: func() {
+				connectCommand = mockConnect
+				mockConnectError = fmt.Errorf("mock startup connect with endpoint failed")
+			},
+			checkMocks: func(t *testing.T) {
+				if !mockConnectCalled {
+					t.Errorf("mockConnect не был вызван")
+				}
+			},
+			wantErr: true,
+			errMsg:  "mock startup connect with endpoint failed",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// В этом тесте мы не переопределяем commands.Connect, так как это невозможно
-			// без изменения пакета commands. Поэтому тестируются только те сценарии,
-			// которые не приводят к фактическому вызову commands.Connect или
-			// возвращают ошибку раньше.
+			resetMocks() // Сброс моков перед каждым подтестом
+			if tt.setupMocks != nil {
+				tt.setupMocks()
+			}
 
 			err := ParseStartupArgs(tt.args)
 
@@ -141,6 +311,10 @@ func TestParseStartupArgs(t *testing.T) {
 				if err != nil {
 					t.Errorf("ParseStartupArgs() получена непредвиденная ошибка = %v", err)
 				}
+			}
+
+			if tt.checkMocks != nil {
+				tt.checkMocks(t)
 			}
 		})
 	}
