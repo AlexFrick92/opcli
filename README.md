@@ -26,3 +26,7 @@ opcli> exit
 
 - Only one active connection is supported at a time
 - Connecting to a new server automatically disconnects from the previous one
+
+
+
+- this is madness
